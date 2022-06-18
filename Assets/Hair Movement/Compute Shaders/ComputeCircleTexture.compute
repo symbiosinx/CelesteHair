@@ -1,0 +1,35 @@
+#pragma kernel GenerateTexture
+
+float2 texsize;
+float ppu;
+float3 color;
+int blobcount;
+RWTexture2D<float4> output;
+
+// world space bounds of the texture
+float4 bounds;
+// positions and radii of the hairblobs
+RWStructuredBuffer<float3> blobs;
+
+float2 texToWorld(float2 tex) {
+    return float2(
+        lerp(bounds.x, bounds.z, tex.x/texsize.x),
+        lerp(bounds.y, bounds.w, tex.y/texsize.y)
+    );
+}
+
+[numthreads(8, 8, 1)]
+void GenerateTexture (uint3 id : SV_DispatchThreadID) {
+
+    float2 pos = texToWorld((float2)id.xy) + .5/ppu;
+
+    float pixel = 0.0;
+    for (int i = 0; i < blobcount; i++) {
+        pixel += length(pos - blobs[i].xy) < blobs[i].z;
+    }
+
+    pixel = saturate(pixel);
+
+    output[id.xy] = float4((float3)pixel*color, pixel);
+
+}
